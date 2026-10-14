@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f3ed">
+  <title>시간 계획표</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f3ed;
+      --surface: #fffefa;
+      --ink: #202620;
+      --muted: #777d73;
+      --line: #e4e5dc;
+      --green: #3d684e;
+      --green-soft: #e4ede2;
+      --coral: #d57d62;
+      --sun: #e8bd56;
+      --hour-height: 58px;
+      --shadow: 0 14px 40px rgba(42, 51, 40, .07);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image: radial-gradient(#cfd4c6 0.7px, transparent 0.7px);
+      background-size: 16px 16px;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    .app { width: min(1180px, calc(100% - 64px)); margin: 0 auto; padding: 34px 0 56px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 38px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 750; letter-spacing: 0; }
+    .brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 11px; color: #243329; background: var(--sun); transform: rotate(-5deg); }
+    .brand-mark svg { width: 20px; height: 20px; }
+    .top-note { color: var(--muted); font-size: 13px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; align-items: start; gap: 34px; }
+    .main-column { min-width: 0; }
+    .date-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 29px; }
+    .date-heading { min-width: 0; }
+    .eyebrow { margin: 0 0 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: 1.4px; }
+    h1 { margin: 0; font-family: Georgia, "Malgun Gothic", serif; font-size: 32px; font-weight: 600; letter-spacing: 0; }
+    .date-controls { display: flex; align-items: center; gap: 7px; }
+    .icon-button, .today-button { display: inline-grid; min-width: 38px; height: 38px; padding: 0 10px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+    .icon-button:hover, .today-button:hover { border-color: #aab9a8; background: #f9fbf5; }
+    .icon-button svg { width: 16px; height: 16px; }
+    .today-button { color: var(--green); font-size: 12px; font-weight: 700; }
+    .date-input { width: 40px; height: 38px; margin-left: 2px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+    .date-input::-webkit-calendar-picker-indicator { width: 18px; cursor: pointer; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+    .summary-item { display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 15px 18px; border: 1px solid rgba(222, 225, 215, .9); border-radius: 10px; background: rgba(255, 254, 250, .82); }
+    .summary-label { color: var(--muted); font-size: 12px; }
+    .summary-value { display: block; margin-top: 5px; font-size: 21px; font-weight: 750; letter-spacing: 0; }
+    .summary-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+    .summary-item:nth-child(2) .summary-dot { background: var(--coral); }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin: 0 0 13px; }
+    .section-title h2 { margin: 0; font-size: 16px; font-weight: 750; }
+    .section-title span { color: var(--muted); font-size: 12px; }
+    .schedule-board { position: relative; display: grid; grid-template-columns: 54px minmax(0, 1fr); grid-template-rows: repeat(16, var(--hour-height)); border-top: 1px solid var(--line); }
+    .hour-label { grid-column: 1; padding: 8px 10px 0 0; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+    .hour-slot { z-index: 1; grid-column: 2; border-bottom: 1px solid var(--line); background: rgba(255, 254, 250, .36); transition: background .12s; }
+    .hour-slot:nth-of-type(4n + 2) { background: rgba(255, 254, 250, .72); }
+    .hour-slot.is-over { background: #e3eee1; box-shadow: inset 0 0 0 1px #aac1a8; }
+    .scheduled-layer { position: absolute; z-index: 2; inset: 0 0 0 54px; pointer-events: none; }
+    .board-message { min-height: 20px; margin: 0 0 8px 54px; color: var(--muted); font-size: 11px; }
+    .board-message.error { color: #b14c37; }
+    .plan-card { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 78px; padding: 15px 16px 15px 18px; border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: 8px; background: var(--surface); box-shadow: 0 3px 10px rgba(38, 45, 34, .025); }
+    .plan-card.is-completed { background: #f1f5ed; }
+    .plan-card.is-completed .plan-name { color: var(--muted); text-decoration: line-through; }
+    .schedule-card { position: absolute; left: 7px; right: 7px; min-height: 0; padding: 7px 9px; border-left-width: 3px; cursor: grab; pointer-events: auto; }
+    .plan-list.is-dragging .schedule-card { pointer-events: none; }
+    .schedule-card:active, .draggable-plan.dragging { cursor: grabbing; opacity: .55; }
+    .draggable-plan { user-select: none; touch-action: none; }
+    .schedule-card .plan-name { margin-bottom: 4px; font-size: 12px; }
+    .schedule-card .plan-meta { font-size: 10px; }
+    .plan-info { min-width: 0; }
+    .plan-name { overflow: hidden; margin: 0 0 7px; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .plan-meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+    .plan-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
+    .completion-checkbox { width: 16px; height: 16px; margin: 0 2px 0 0; flex: 0 0 auto; accent-color: var(--green); cursor: pointer; }
+    .text-button { padding: 6px 7px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; font-size: 11px; cursor: pointer; }
+    .text-button:hover { color: var(--ink); background: #f0f1eb; }
+    .pending-section { margin-top: 25px; }
+    .pending-list { display: grid; gap: 8px; }
+    .pending-card { min-height: 64px; padding: 12px 14px; cursor: grab; }
+    .pending-card .plan-name { margin-bottom: 5px; }
+    .pending-empty { margin: 0; padding: 17px; border: 1px dashed #cdd3c7; border-radius: 8px; color: var(--muted); font-size: 12px; }
+    .empty-state { padding: 46px 20px; border: 1px dashed #cdd3c7; border-radius: 9px; color: var(--muted); background: rgba(255, 254, 250, .55); text-align: center; }
+    .empty-state svg { width: 32px; height: 32px; margin-bottom: 12px; color: var(--green); }
+    .empty-state strong { display: block; margin-bottom: 6px; color: var(--ink); font-size: 14px; }
+    .empty-state p { margin: 0; font-size: 12px; }
+    .editor { position: sticky; top: 22px; padding: 23px; border: 1px solid #e5e6de; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+    .editor-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+    .editor-header h2 { margin: 0 0 5px; font-size: 17px; }
+    .editor-header p { margin: 0; color: var(--muted); font-size: 12px; }
+    .form-field { display: block; margin-bottom: 16px; }
+    .form-field > span, .field-label { display: block; margin-bottom: 7px; color: #4e554d; font-size: 12px; font-weight: 700; }
+    .field-input { width: 100%; min-height: 42px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 6px; outline: none; color: var(--ink); background: #fff; font-size: 13px; }
+    .field-input:focus { border-color: #78957a; box-shadow: 0 0 0 3px rgba(61, 104, 78, .1); }
+    .field-input::placeholder { color: #a5aaa1; }
+    textarea.field-input { min-height: 75px; resize: vertical; }
+    .duration-input-wrap { position: relative; }
+    .duration-input-wrap .field-input { padding-right: 44px; }
+    .duration-unit { position: absolute; top: 50%; right: 12px; color: var(--muted); font-size: 12px; transform: translateY(-50%); }
+    .submit-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 43px; border: 0; border-radius: 6px; color: white; background: var(--green); font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s, transform .15s; }
+    .submit-button:hover { background: #31583f; transform: translateY(-1px); }
+    .submit-button svg { width: 16px; height: 16px; }
+    .cancel-button { display: none; width: 100%; margin-top: 8px; padding: 8px; border: 0; color: var(--muted); background: transparent; font-size: 12px; cursor: pointer; }
+    .cancel-button.visible { display: block; }
+    .form-error { min-height: 18px; margin: -4px 0 9px; color: #b14c37; font-size: 11px; line-height: 1.5; }
+    .privacy-note { display: flex; align-items: center; gap: 7px; margin: 15px 0 0; color: #898e85; font-size: 10px; }
+    .privacy-note svg { width: 13px; height: 13px; }
+    @media (max-width: 800px) {
+      .app { width: min(100% - 36px, 620px); padding-top: 22px; }
+      .topbar { margin-bottom: 29px; }
+      .layout { grid-template-columns: 1fr; gap: 28px; }
+      .editor { position: static; grid-row: 1; }
+      .main-column { grid-row: 2; }
+      .date-bar { margin-bottom: 22px; }
+    }
+    @media (max-width: 480px) {
+      :root { --hour-height: 54px; }
+      .app { width: calc(100% - 28px); padding-top: 17px; }
+      .topbar { margin-bottom: 22px; }
+      .top-note { display: none; }
+      h1 { font-size: 26px; }
+      .date-bar { align-items: flex-end; gap: 8px; }
+      .date-controls { gap: 4px; }
+      .icon-button, .today-button { min-width: 34px; height: 34px; }
+      .today-button { padding: 0 8px; }
+      .date-input { width: 28px; height: 34px; }
+      .summary { gap: 8px; margin-bottom: 23px; }
+      .summary-item { min-height: 64px; padding: 12px; }
+      .summary-value { font-size: 18px; }
+      .schedule-board { grid-template-columns: 48px minmax(0, 1fr); }
+      .scheduled-layer { left: 48px; }
+      .board-message { margin-left: 48px; }
+      .plan-card { min-height: 72px; padding: 12px; gap: 6px; }
+      .schedule-card { min-height: 0; padding: 6px 8px; }
+      .plan-name { max-width: 150px; font-size: 13px; }
+      .plan-actions { flex-direction: row; gap: 2px; }
+      .text-button { padding: 4px 5px; }
+      .editor { padding: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/><path d="M4.5 5.5 3 7m16.5-1.5L21 7"/></svg></span>
+        <span>시간 계획표</span>
+      </div>
+      <div class="top-note">내 시간을 내가 고르는 곳</div>
+    </header>
+
+    <main class="layout">
+      <section class="main-column" aria-labelledby="day-heading">
+        <div class="date-bar">
+          <div class="date-heading">
+            <p class="eyebrow">MY DAY, MY PACE</p>
+            <h1 id="day-heading">오늘의 계획</h1>
+          </div>
+          <div class="date-controls" aria-label="날짜 이동">
+            <button class="icon-button" id="previous-day" type="button" aria-label="전날"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14.5 5-7 7 7 7"/></svg></button>
+            <button class="today-button" id="today-button" type="button">오늘</button>
+            <button class="icon-button" id="next-day" type="button" aria-label="다음 날"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9.5 5 7 7-7 7"/></svg></button>
+            <input class="date-input" id="selected-date" type="date" aria-label="날짜 선택">
+          </div>
+        </div>
+
+        <div class="summary" aria-live="polite">
+          <div class="summary-item"><div><span class="summary-label">오늘의 일정</span><strong class="summary-value" id="plan-count">0개</strong></div><span class="summary-dot" aria-hidden="true"></span></div>
+          <div class="summary-item"><div><span class="summary-label">계획한 시간</span><strong class="summary-value" id="planned-hours">0시간</strong></div><span class="summary-dot" aria-hidden="true"></span></div>
+        </div>
+
+        <div class="section-title"><h2>하루 일정표</h2><span id="list-date"></span></div>
+        <div class="board-message" id="board-message" role="status"></div>
+        <div class="plan-list" id="plan-list" aria-live="polite"></div>
+      </section>
+
+      <aside class="editor" aria-labelledby="form-heading">
+        <div class="editor-header">
+          <div><h2 id="form-heading">새 일정</h2><p>하루에 작은 약속을 더해보세요.</p></div>
+        </div>
+        <form id="plan-form" novalidate>
+          <label class="form-field"><span>무엇을 할까요?</span><input class="field-input" id="plan-title" name="title" type="text" maxlength="60" placeholder="예: 자료 정리하기" required></label>
+          <label class="form-field"><span>소요 시간</span><div class="duration-input-wrap"><input class="field-input" id="duration-minutes" name="duration" type="number" min="15" max="960" step="15" value="60" required><span class="duration-unit">분</span></div></label>
+          <label class="form-field"><span>메모 <span style="font-weight:400;color:#92978e">(선택)</span></span><textarea class="field-input" id="plan-note" name="note" maxlength="180" placeholder="잊지 말아야 할 내용을 적어두세요"></textarea></label>
+          <p class="form-error" id="form-error" role="alert"></p>
+          <button class="submit-button" id="submit-button" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span>일정 추가</span></button>
+          <button class="cancel-button" id="cancel-edit" type="button">수정 취소</button>
+        </form>
+        <p class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>일정은 이 브라우저에 자동 저장됩니다.</p>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const storageKey = "haru-ui-plans-v1";
+    const dateInput = document.querySelector("#selected-date");
+    const form = document.querySelector("#plan-form");
+    const list = document.querySelector("#plan-list");
+    const errorMessage = document.querySelector("#form-error");
+    const submitLabel = document.querySelector("#submit-button span");
+    const formHeading = document.querySelector("#form-heading");
+    const cancelEditButton = document.querySelector("#cancel-edit");
+    let editingId = null;
+
+    const localDateString = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    dateInput.value = localDateString(new Date());
+
+    const readPlans = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        return Array.isArray(stored) ? stored : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const boardStart = 7;
+    const boardEnd = 23;
+    const timeToMinutes = (time) => {
+      const [hours, minutes] = time.split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+    const formatTime = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+    let plans = readPlans().map((plan) => {
+      const legacyStart = typeof plan.start === "string" ? timeToMinutes(plan.start) : null;
+      const legacyDuration = legacyStart !== null && typeof plan.end === "string" ? timeToMinutes(plan.end) - legacyStart : null;
+      const duration = Number(plan.duration) || legacyDuration || 60;
+      const candidateStart = Number.isInteger(plan.startMinute) ? plan.startMinute : legacyStart;
+      const startMinute = candidateStart !== null && candidateStart >= boardStart * 60 && candidateStart + duration <= boardEnd * 60 ? candidateStart : null;
+      const normalizedPlan = { ...plan, duration, startMinute, completed: Boolean(plan.completed) };
+      delete normalizedPlan.category;
+      delete normalizedPlan.start;
+      delete normalizedPlan.end;
+      return normalizedPlan;
+    });
+
+    const savePlans = () => localStorage.setItem(storageKey, JSON.stringify(plans));
+    const durationLabel = (minutes) => {
+      const hours = Math.floor(minutes / 60);
+      const remainder = minutes % 60;
+      if (hours && remainder) return `${hours}시간 ${remainder}분`;
+      if (hours) return `${hours}시간`;
+      return `${remainder}분`;
+    };
+    let renderedHourHeight = null;
+
+    function render() {
+      const date = dateInput.value;
+      const hourHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour-height"));
+      renderedHourHeight = hourHeight;
+      const dayPlans = plans.filter((plan) => plan.date === date).sort((first, second) => (first.startMinute ?? Infinity) - (second.startMinute ?? Infinity));
+      const dateObject = new Date(`${date}T12:00:00`);
+      const formattedDate = new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(dateObject);
+      document.querySelector("#list-date").textContent = formattedDate;
+      document.querySelector("#plan-count").textContent = `${dayPlans.length}개`;
+      const totalMinutes = dayPlans.reduce((total, plan) => total + plan.duration, 0);
+      document.querySelector("#planned-hours").textContent = totalMinutes ? durationLabel(totalMinutes) : "0시간";
+
+      const hourRows = Array.from({ length: boardEnd - boardStart }, (_, index) => {
+        const hour = boardStart + index;
+        const minute = hour * 60;
+        const timeLabel = `${String(hour).padStart(2, "0")}:00`;
+        return `<div class="hour-label" style="grid-row:${index + 1}">${timeLabel}</div><div class="hour-slot${index % 2 ? " alt" : ""}" style="grid-row:${index + 1}" data-minute="${minute}" aria-label="${timeLabel} 시간 칸"></div>`;
+      }).join("");
+      const placedPlans = dayPlans.filter((plan) => plan.startMinute !== null).map((plan) => {
+        const top = (plan.startMinute - boardStart * 60) / 60 * hourHeight;
+        const height = Math.max(plan.duration / 60 * hourHeight - 6, 34);
+        return `<article class="plan-card schedule-card draggable-plan${plan.completed ? " is-completed" : ""}" data-plan-id="${escapeAttribute(plan.id)}" style="top:${top}px;height:${height}px">
+          <div class="plan-info"><h3 class="plan-name" title="${escapeAttribute(plan.title)}">${escapeHtml(plan.title)}</h3><div class="plan-meta"><span>${formatTime(plan.startMinute)} – ${formatTime(plan.startMinute + plan.duration)}</span></div></div>
+          <div class="plan-actions"><input class="completion-checkbox" type="checkbox" data-action="complete" data-id="${escapeAttribute(plan.id)}" aria-label="${escapeAttribute(plan.title)} 완료" title="완료 표시" ${plan.completed ? "checked" : ""}><button class="text-button" type="button" data-action="edit" data-id="${escapeAttribute(plan.id)}">수정</button><button class="text-button" type="button" data-action="delete" data-id="${escapeAttribute(plan.id)}">삭제</button></div>
+        </article>`;
+      }).join("");
+      const pendingPlans = dayPlans.filter((plan) => plan.startMinute === null);
+      const pendingMarkup = pendingPlans.length ? pendingPlans.map((plan) => `
+        <article class="plan-card pending-card draggable-plan${plan.completed ? " is-completed" : ""}" data-plan-id="${escapeAttribute(plan.id)}">
+          <div class="plan-info"><h3 class="plan-name" title="${escapeAttribute(plan.title)}">${escapeHtml(plan.title)}</h3><div class="plan-meta"><span>${durationLabel(plan.duration)}</span>${plan.note ? `<span title="${escapeAttribute(plan.note)}">메모 있음</span>` : ""}</div></div>
+          <div class="plan-actions"><input class="completion-checkbox" type="checkbox" data-action="complete" data-id="${escapeAttribute(plan.id)}" aria-label="${escapeAttribute(plan.title)} 완료" title="완료 표시" ${plan.completed ? "checked" : ""}><button class="text-button" type="button" data-action="edit" data-id="${escapeAttribute(plan.id)}">수정</button><button class="text-button" type="button" data-action="delete" data-id="${escapeAttribute(plan.id)}">삭제</button></div>
+        </article>`).join("") : `<p class="pending-empty">배치 대기 중인 일정이 없습니다.</p>`;
+      list.innerHTML = `<div class="schedule-board">${hourRows}<div class="scheduled-layer">${placedPlans}</div></div>
+        <section class="pending-section" aria-labelledby="pending-heading"><div class="section-title"><h2 id="pending-heading">배치 대기</h2><span>${pendingPlans.length}개</span></div><div class="pending-list" data-dropzone="pending">${pendingMarkup}</div></section>`;
+      const boardMessage = document.querySelector("#board-message");
+      boardMessage.textContent = "07:00 – 23:00";
+      boardMessage.classList.remove("error");
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value);
+    }
+
+    function resetForm() {
+      editingId = null;
+      form.reset();
+      document.querySelector("#duration-minutes").value = "60";
+      formHeading.textContent = "새 일정";
+      submitLabel.textContent = "일정 추가";
+      cancelEditButton.classList.remove("visible");
+      errorMessage.textContent = "";
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const title = document.querySelector("#plan-title").value.trim();
+      const duration = Number(document.querySelector("#duration-minutes").value);
+      const note = document.querySelector("#plan-note").value.trim();
+      const date = dateInput.value;
+
+      if (!title || !date || !Number.isInteger(duration) || duration < 15 || duration > 960 || duration % 15 !== 0) {
+        errorMessage.textContent = "일정 이름과 15분 단위 소요 시간을 입력해주세요. (15~960분)";
+        return;
+      }
+      const existingPlan = plans.find((plan) => plan.id === editingId);
+      const startMinute = existingPlan?.startMinute ?? null;
+      const hasOverlap = startMinute !== null && plans.some((plan) => plan.date === date && plan.id !== editingId && plan.startMinute !== null && startMinute < plan.startMinute + plan.duration && startMinute + duration > plan.startMinute);
+      if (hasOverlap) {
+        errorMessage.textContent = "소요 시간을 늘리면 다른 일정과 겹쳐요.";
+        return;
+      }
+
+      const entry = { id: editingId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), date, title, duration, startMinute, completed: existingPlan?.completed ?? false, note };
+      if (editingId) plans = plans.map((plan) => plan.id === editingId ? entry : plan);
+      else plans.push(entry);
+      savePlans();
+      resetForm();
+      render();
+    });
+
+    list.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const plan = plans.find((item) => item.id === button.dataset.id);
+      if (!plan) return;
+      if (button.dataset.action === "delete") {
+        plans = plans.filter((item) => item.id !== plan.id);
+        savePlans();
+        if (editingId === plan.id) resetForm();
+        render();
+        return;
+      }
+      editingId = plan.id;
+      dateInput.value = plan.date;
+      document.querySelector("#plan-title").value = plan.title;
+      document.querySelector("#duration-minutes").value = plan.duration;
+      document.querySelector("#plan-note").value = plan.note || "";
+      formHeading.textContent = "일정 수정";
+      submitLabel.textContent = "변경 저장";
+      cancelEditButton.classList.add("visible");
+      errorMessage.textContent = "";
+      render();
+      document.querySelector("#plan-title").focus();
+      if (window.matchMedia("(max-width: 800px)").matches) document.querySelector(".editor").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    list.addEventListener("change", (event) => {
+      const checkbox = event.target.closest('input[data-action="complete"]');
+      if (!checkbox) return;
+      const plan = plans.find((item) => item.id === checkbox.dataset.id);
+      if (!plan) return;
+      plan.completed = checkbox.checked;
+      savePlans();
+      render();
+    });
+
+    let draggingPlanId = null;
+
+    list.addEventListener("pointerdown", (event) => {
+      const card = event.target.closest(".draggable-plan");
+      if (!card || event.target.closest("button, input") || (event.pointerType === "mouse" && event.button !== 0)) return;
+      event.preventDefault();
+      draggingPlanId = card.dataset.planId;
+      list.classList.add("is-dragging");
+      card.classList.add("dragging");
+    });
+
+    list.addEventListener("pointermove", (event) => {
+      if (!draggingPlanId) return;
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const dropTarget = target?.closest(".hour-slot, [data-dropzone='pending']");
+      list.querySelectorAll(".is-over").forEach((element) => element.classList.remove("is-over"));
+      if (dropTarget) dropTarget.classList.add("is-over");
+    });
+
+    list.addEventListener("pointerup", (event) => {
+      if (!draggingPlanId) return;
+      const planId = draggingPlanId;
+      draggingPlanId = null;
+      list.classList.remove("is-dragging");
+      list.querySelectorAll(".dragging").forEach((element) => element.classList.remove("dragging"));
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const slot = Array.from(list.querySelectorAll(".hour-slot")).find((hourSlot) => {
+        const bounds = hourSlot.getBoundingClientRect();
+        return event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY < bounds.bottom;
+      }) || target?.closest(".hour-slot");
+      const pendingDropzone = target?.closest('[data-dropzone="pending"]');
+      list.querySelectorAll(".is-over").forEach((element) => element.classList.remove("is-over"));
+      const plan = plans.find((item) => item.id === planId && item.date === dateInput.value);
+      if (!plan || (!slot && !pendingDropzone)) return;
+
+      if (pendingDropzone) {
+        plan.startMinute = null;
+        savePlans();
+        render();
+        return;
+      }
+
+      const startMinute = Number(slot.dataset.minute);
+      const boardMessage = document.querySelector("#board-message");
+      if (startMinute + plan.duration > boardEnd * 60) {
+        boardMessage.textContent = "이 일정은 23:00 이후까지 이어져 이 칸에 배치할 수 없어요.";
+        boardMessage.classList.add("error");
+        return;
+      }
+      const hasOverlap = plans.some((otherPlan) => otherPlan.date === plan.date && otherPlan.id !== plan.id && otherPlan.startMinute !== null && startMinute < otherPlan.startMinute + otherPlan.duration && startMinute + plan.duration > otherPlan.startMinute);
+      if (hasOverlap) {
+        boardMessage.textContent = "다른 일정과 겹치는 시간에는 배치할 수 없어요.";
+        boardMessage.classList.add("error");
+        return;
+      }
+      plan.startMinute = startMinute;
+      savePlans();
+      render();
+    });
+
+    list.addEventListener("pointercancel", () => {
+      draggingPlanId = null;
+      list.classList.remove("is-dragging");
+      list.querySelectorAll(".dragging, .is-over").forEach((element) => element.classList.remove("dragging", "is-over"));
+    });
+
+    cancelEditButton.addEventListener("click", resetForm);
+    dateInput.addEventListener("change", () => { resetForm(); render(); });
+    document.querySelector("#previous-day").addEventListener("click", () => moveDate(-1));
+    document.querySelector("#next-day").addEventListener("click", () => moveDate(1));
+    document.querySelector("#today-button").addEventListener("click", () => {
+      dateInput.value = localDateString(new Date());
+      resetForm();
+      render();
+    });
+
+    function moveDate(offset) {
+      const date = new Date(`${dateInput.value}T12:00:00`);
+      date.setDate(date.getDate() + offset);
+      dateInput.value = localDateString(date);
+      resetForm();
+      render();
+    }
+
+    window.addEventListener("resize", () => {
+      const hourHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour-height"));
+      if (hourHeight !== renderedHourHeight) render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
